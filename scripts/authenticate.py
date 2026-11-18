@@ -18,6 +18,18 @@ SCOPE = "clips:edit"
 EXPECTED_LOGIN = "badhai1"
 
 
+def default_output_path() -> Path:
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        return Path(local_app_data) / "TwitchAutoClipper" / "github-secrets.json"
+    data_home = os.environ.get("XDG_DATA_HOME")
+    if data_home:
+        base = Path(data_home)
+    else:
+        base = Path.home() / ".local" / "share"
+    return base / "twitch-auto-clipper" / "github-secrets.json"
+
+
 def request_json(url: str, fields: dict[str, str] | None = None) -> dict:
     body = urlencode(fields).encode("utf-8") if fields else None
     headers = {}
@@ -43,7 +55,7 @@ def main() -> int:
         description="Twitch-Geräteautorisierung für badhai1 und lokale Secret-Datei."
     )
     parser.add_argument("--client-id", default=os.environ.get("TWITCH_CLIENT_ID", ""))
-    parser.add_argument("--output", default=".secrets/github-secrets.json")
+    parser.add_argument("--output", default=str(default_output_path()))
     args = parser.parse_args()
     client_id = args.client_id.strip()
     if not client_id:

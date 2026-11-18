@@ -48,7 +48,7 @@ python -m pip install -e .
 python scripts/authenticate.py --client-id DEINE_TWITCH_CLIENT_ID
 ~~~
 
-Das Skript zeigt einen Twitch-Aktivierungslink und einen einmaligen Code. Melde dich bei Twitch als badhai1 an und bestätige die angezeigte Berechtigung. Das Skript prüft danach Konto, App-ID und Scope. Die drei Secret-Werte schreibt es in .secrets/github-secrets.json. Diese Datei ist lokal und durch .gitignore ausgeschlossen. Sie enthält vertrauliche Werte; teile und committe sie nicht.
+Das Skript zeigt einen Twitch-Aktivierungslink und einen einmaligen Code. Melde dich bei Twitch als badhai1 an und bestätige die angezeigte Berechtigung. Das Skript prüft danach Konto, App-ID und Scope. Unter Windows schreibt es die drei Secret-Werte nach %LOCALAPPDATA%\TwitchAutoClipper\github-secrets.json, außerhalb des Projektordners und OneDrive. Unter Linux verwendet es XDG_DATA_HOME oder ~/.local/share/twitch-auto-clipper/github-secrets.json. Die Datei enthält vertrauliche Werte; teile oder committe sie nicht. Das Skript gibt den vollständigen lokalen Pfad aus.
 
 ## 3. GitHub Secrets anlegen
 
