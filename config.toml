@@ -1,0 +1,9 @@
+[twitch]
+channel = "badhai1"
+interval_minutes = 10
+clip_duration_seconds = 60
+
+[bot]
+enabled = false
+log_level = "INFO"
+state_file = ".state/runtime.enc"

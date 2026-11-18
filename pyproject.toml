@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "twitch-auto-clipper"
+version = "1.0.0"
+description = "Automatische Twitch-Live-Clips mit GitHub Actions"
+requires-python = ">=3.11"
+dependencies = ["cryptography>=42,<50"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

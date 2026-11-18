@@ -1,0 +1,28 @@
+name: Tests
+
+on:
+  push:
+    paths-ignore:
+      - ".state/**"
+  pull_request:
+    paths-ignore:
+      - ".state/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quellcode laden
+        uses: actions/checkout@v7
+      - name: Python einrichten
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Abhängigkeiten installieren
+        run: python -m pip install -e .
+      - name: Tests ausführen
+        run: python -m unittest discover -s tests -v
