@@ -1,9 +1,8 @@
 name: Twitch Auto Clipper
 
 on:
-  # Erst nach erfolgreichem Twitch-Dry-Run diese drei Kommentarzeichen entfernen:
-  # schedule:
-  #   - cron: "3-58/5 * * * *"
+  schedule:
+    - cron: "3-58/5 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

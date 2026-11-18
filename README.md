@@ -66,19 +66,21 @@ Twitch weist für den Device Code Flow darauf hin, dass ein Refresh-Token nach 3
 
 ## 4. Konfiguration ändern und Bot aktivieren
 
-In config.toml:
+Aktive Konfiguration in config.toml:
 
-- Intervall: twitch.interval_minutes auf 5, 10, 15, 20, 25 oder 30 setzen. Standard: 10.
-- Clip-Länge: twitch.clip_duration_seconds auf 15, 30, 45 oder 60 setzen. Standard: 60.
-- Bot einschalten: bot.enabled auf true setzen. Standard: false.
-- Bot ausschalten: bot.enabled wieder auf false setzen und committen.
+- Twitch-Kanal: badhai1.
+- Clip-Intervall: twitch.interval_minutes = 10.
+- Clip-Länge: twitch.clip_duration_seconds = 60.
+- Bot-Status: bot.enabled = true.
 - Protokollierung: bot.log_level auf DEBUG, INFO, WARNING oder ERROR setzen.
 
 Der Kanal ist in Version 1.0 auf badhai1 festgelegt. Auch bei einer Änderung der Konfiguration verweigert der Bot Clips für andere Konten. Der OAuth-Login muss zum Kanal passen.
 
-Starte unter **Actions → Twitch Auto Clipper → Run workflow** einen manuellen Lauf mit **Testlauf ohne echten Twitch-Clip** aktiviert. Der explizite Dry Run prüft OAuth, Konto, Livestream-Status und Fälligkeit auch bei bot.enabled=false und fordert niemals einen Clip an. Für echte Clip-Anfragen muss bot.enabled ausdrücklich auf true gesetzt werden. Wenn ein Dry Run erfolgreich war und du den automatischen Zeitplan aktivieren möchtest, entferne in .github/workflows/clipper.yml die drei Kommentarzeichen vor schedule und cron und commite die Änderung. Lege zusätzlich unter **Settings → Secrets and variables → Actions → Variables** die Repository-Variable TWITCH_CLIPPER_ENABLED=true an. Erst dann startet der automatische Zeitplan. Er läuft nur vom Standardbranch.
+Der aktive Actions-Zeitplan prüft alle fünf Minuten. Der Bot erstellt höchstens einen Clip, wenn Twitch den Kanal als live meldet und das konfigurierte Zehn-Minuten-Intervall erreicht ist. GitHub Actions kann geplante Läufe verzögern oder auslassen; der verschlüsselte Laufzeitstatus und die Sperre gegen parallele Läufe verhindern doppelte Intervallversuche. Stelle unter **Settings → Secrets and variables → Actions → Variables** die Repository-Variable TWITCH_CLIPPER_ENABLED auf true, damit geplante Läufe ausgeführt werden.
 
-Zum Abschalten setze TWITCH_CLIPPER_ENABLED auf false und commite bot.enabled=false. Ein manueller Dry Run bleibt auch bei der Variablen false verfügbar. Zum Aktivieren einer echten manuellen Clip-Anfrage müsste das Dry-Run-Feld ausdrücklich deaktiviert werden.
+Ein manueller Verbindungstest ist unter **Actions → Twitch Auto Clipper → Run workflow** mit **Testlauf ohne echten Twitch-Clip** möglich. Der explizite Dry Run prüft OAuth, Konto und Livestream-Status, fordert aber niemals einen Clip an.
+
+Zum Abschalten setze TWITCH_CLIPPER_ENABLED auf false. Wenn auch manuelle echte Clip-Anfragen blockiert werden sollen, setze zusätzlich bot.enabled auf false und commite die Änderung. Ein manueller Dry Run bleibt bei der Variablen false verfügbar. Zum manuellen Erstellen eines Clips müsste das Dry-Run-Feld ausdrücklich deaktiviert werden.
 
 ## 5. Clips finden
 

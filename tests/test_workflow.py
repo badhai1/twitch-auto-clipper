@@ -3,13 +3,13 @@ import unittest
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_clipper_schedule_stays_disabled_until_twitch_setup_is_tested(self):
+    def test_clipper_schedule_is_active_and_gated_by_repository_variable(self):
         workflow = (
             Path(__file__).parents[1] / ".github" / "workflows" / "clipper.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn('# schedule:', workflow)
-        self.assertIn('#   - cron: "3-58/5 * * * *"', workflow)
-        self.assertNotIn("\n  schedule:\n", workflow)
+        self.assertIn('\n  schedule:\n    - cron: "3-58/5 * * * *"', workflow)
+        self.assertNotIn("# schedule:", workflow)
+        self.assertIn("vars.TWITCH_CLIPPER_ENABLED == 'true'", workflow)
         self.assertIn("group: twitch-auto-clipper", workflow)
         self.assertIn("cancel-in-progress: false", workflow)
         self.assertIn("contents: write", workflow)

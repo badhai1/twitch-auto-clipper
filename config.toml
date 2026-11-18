@@ -4,6 +4,6 @@ interval_minutes = 10
 clip_duration_seconds = 60
 
 [bot]
-enabled = false
+enabled = true
 log_level = "INFO"
 state_file = ".state/runtime.enc"

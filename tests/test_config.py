@@ -16,12 +16,12 @@ class ConfigTests(unittest.TestCase):
         path.write_text(content, encoding="utf-8")
         return path
 
-    def test_default_configuration_is_badhai1_and_disabled(self):
+    def test_configured_profile_is_badhai1_enabled_at_ten_minutes_and_sixty_seconds(self):
         config = load_config(Path(__file__).parents[1] / "config.toml")
         self.assertEqual(config.channel, "badhai1")
         self.assertEqual(config.interval_minutes, 10)
         self.assertEqual(config.clip_duration_seconds, 60)
-        self.assertFalse(config.enabled)
+        self.assertTrue(config.enabled)
 
     def test_all_requested_intervals_and_lengths_are_supported(self):
         self.assertEqual(ALLOWED_INTERVALS, (5, 10, 15, 20, 25, 30))
