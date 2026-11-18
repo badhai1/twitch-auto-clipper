@@ -64,10 +64,13 @@ def main() -> int:
     )
     logging.info("Ausführung gestartet.")
     try:
-        if not config.enabled:
+        dry_run = args.dry_run or os.environ.get("DRY_RUN", "").lower() == "true"
+        if not config.enabled and not dry_run:
             logging.info("Automatische Clip-Erstellung ist in config.toml deaktiviert.")
             logging.info("Ausführung beendet.")
             return 0
+        if not config.enabled and dry_run:
+            logging.info("Clip-Erstellung ist deaktiviert; führe nur den Dry Run aus.")
 
         client_id = os.environ.get("TWITCH_CLIENT_ID", "")
         encryption_key = os.environ.get("TOKEN_ENCRYPTION_KEY", "")
@@ -76,7 +79,6 @@ def main() -> int:
         state = store.load(initial_refresh_token=initial_refresh_token)
         save_state = lambda: store.save(state)
         twitch = TwitchClient(client_id, state, save_state)
-        dry_run = args.dry_run or os.environ.get("DRY_RUN", "").lower() == "true"
         result = run_once(
             config,
             state,
