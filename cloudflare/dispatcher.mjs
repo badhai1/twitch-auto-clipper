@@ -140,7 +140,10 @@ async function installationToken(env, fetchImpl, nowSeconds) {
     },
   );
   if (!response.ok) {
-    throw new Error(`GitHub App token request failed (HTTP ${response.status}).`);
+    const detail = await safeGitHubFailureDetail(response);
+    throw new Error(
+      `GitHub App token request failed (HTTP ${response.status}${detail}).`,
+    );
   }
   const data = await response.json();
   if (!data.token) throw new Error("GitHub did not return an installation token.");
@@ -171,10 +174,31 @@ export async function dispatchScheduled({
     },
   );
   if (!response.ok) {
-    throw new Error(`GitHub workflow dispatch failed (HTTP ${response.status}).`);
+    const detail = await safeGitHubFailureDetail(response);
+    throw new Error(
+      `GitHub workflow dispatch failed (HTTP ${response.status}${detail}).`,
+    );
   }
   logger.info(`Dispatch accepted: mode=${mode}; workflow=${workflow}; scheduled_at=${scheduledAtIso}.`);
   return { mode, workflow, scheduledAt: scheduledAtIso, status: response.status };
+}
+
+async function safeGitHubFailureDetail(response) {
+  try {
+    const body = await response.clone().json();
+    if (typeof body?.message !== "string") return "";
+    const message = body.message
+      .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/giu, "[redacted private key]")
+      .replace(/\bBearer\s+\S+/giu, "Bearer [redacted]")
+      .replace(/\b(?:gh[pousr]_[A-Za-z0-9_]+|github_pat_[A-Za-z0-9_]+|cfat_[A-Za-z0-9_]+)\b/giu, "[redacted]")
+      .replace(/\b[A-Za-z0-9+/_=-]{40,}\b/gu, "[redacted]")
+      .replace(/[\r\n\t]+/gu, " ")
+      .trim()
+      .slice(0, 160);
+    return message ? `; detail=${message}` : "";
+  } catch {
+    return "";
+  }
 }
 
 export default {

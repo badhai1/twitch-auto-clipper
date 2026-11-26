@@ -31,7 +31,7 @@ function verifyAppJwt(jwt, publicKey) {
   return { valid, header: decodeJwtPart(header), payload: decodeJwtPart(payload) };
 }
 
-function mockGitHub({ dispatchStatus = 204 } = {}) {
+function mockGitHub({ dispatchStatus = 204, tokenStatus = 201, tokenMessage } = {}) {
   const { privateKey, publicKey } = makeKeyPair();
   const calls = [];
   const fetchImpl = async (url, options) => {
@@ -44,6 +44,9 @@ function mockGitHub({ dispatchStatus = 204 } = {}) {
       assert.equal(checked.payload.iss, "123456");
       assert.equal(checked.payload.iat, nowSeconds - 60);
       assert.equal(checked.payload.exp, nowSeconds + 9 * 60);
+      if (tokenStatus !== 201) {
+        return Response.json({ message: tokenMessage ?? "Token request denied." }, { status: tokenStatus });
+      }
       return Response.json({ token: "installation-token" }, { status: 201 });
     }
     return new Response(null, { status: dispatchStatus });
@@ -156,4 +159,35 @@ test("GitHub errors expose only the HTTP status, not response content", async ()
     }),
     (error) => error.message === "GitHub workflow dispatch failed (HTTP 403).",
   );
+});
+
+test("GitHub token failures include only a sanitized, bounded API message", async () => {
+  const fakeToken = `ghs_${"x".repeat(48)}`;
+  const github = mockGitHub({
+    tokenStatus: 403,
+    tokenMessage: `Access denied. ${fakeToken} Bearer ${fakeToken}`,
+  });
+  await assert.rejects(
+    dispatchScheduled({
+      env: {
+        GITHUB_APP_ID: "123456",
+        GITHUB_INSTALLATION_ID: "654321",
+        GITHUB_APP_PRIVATE_KEY: github.privateKey,
+      },
+      scheduledTime,
+      fetchImpl: github.fetchImpl,
+      nowSeconds,
+      logger: { info() {} },
+    }),
+    (error) => {
+      assert.equal(
+        error.message,
+        "GitHub App token request failed (HTTP 403; detail=Access denied. [redacted] Bearer [redacted]).",
+      );
+      assert.equal(error.message.includes(fakeToken), false);
+      assert.equal(error.message.length < 240, true);
+      return true;
+    },
+  );
+  assert.equal(github.calls.length, 1);
 });

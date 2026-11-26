@@ -10,6 +10,10 @@
     "GITHUB_INSTALLATION_ID": "186219944",
     "TARGET_MODE": "probe"
   },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
   "triggers": {
     "crons": ["3-58/5 * * * *"]
   }
