@@ -43,6 +43,7 @@ class RuntimeState:
     stream_id: str | None = None
     stream_started_at: str | None = None
     next_clip_due_at: str | None = None
+    interval_minutes: int | None = None
     last_attempt_at: str | None = None
     last_success_at: str | None = None
     last_clip_id: str | None = None

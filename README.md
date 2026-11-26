@@ -6,9 +6,9 @@ Ein kleiner Python-Bot, der den Livestream von **badhai1** über die offizielle 
 
 - Twitch erlaubt bei der Live-Clip-Erstellung aktuell eine Clip-Länge von 5 bis 60 Sekunden. Dieses Projekt bietet die angefragten Werte 15, 30, 45 und 60 Sekunden an. Twitch nimmt für die Clip-Erstellung ein Aufnahmefenster von bis zu 90 Sekunden auf; das ist vom veröffentlichten Clip mit der ausgewählten Länge zu unterscheiden. Die API veröffentlicht standardmäßig einen Clip und stellt im Ergebnis eine Bearbeitungsadresse bereit.
 - Die aktuelle Helix-API nimmt einen Clip-Titel entgegen. Der Bot setzt Titel wie „badhai1 - Gaming Clip 001“. Twitch kann einen Titel durch AutoMod ablehnen.
-- GitHub Actions unterstützt Zeitpläne frühestens alle fünf Minuten. Darum prüft der Workflow alle fünf Minuten und erstellt nur dann einen Clip, wenn das gespeicherte Intervall abgelaufen ist. Das funktioniert rechnerisch auch mit 25 Minuten. Es ist keine exakte Uhr: GitHub kann Zeitpläne verzögern und bei hoher Last sogar auslassen. Ein 25-Minuten-Clip kann dadurch später als geplant entstehen; ein verpasster Zeitraum wird nicht nachträglich mit mehreren Clips aufgeholt.
+- GitHub Actions unterstützt Zeitpläne frühestens alle fünf Minuten. Der Workflow prüft alle fünf Minuten und erstellt höchstens einen Clip pro Lauf, wenn das gespeicherte Intervall abgelaufen ist. Verpasste Zeitfenster werden übersprungen statt nachträglich mit mehreren Clips aufgeholt. GitHub kann geplante Läufe verzögern oder auslassen; die tatsächlichen Clip-Abstände sind daher nicht garantiert.
 - Ein laufender Clip-Auftrag wird vor dem Twitch-Aufruf verschlüsselt und gespeichert. Nach einer unklaren Netzwerkstörung wird derselbe Zeitabschnitt nicht blind erneut angefragt. Das verhindert Doppelclips, kann aber bei einem Fehler nach der Reservierung einen Clip-Zeitpunkt auslassen.
-- Der Zeitplan ist im Workflow zunächst auskommentiert und damit nicht aktiviert. Erst nach einem erfolgreichen Twitch-Dry-Run wird er eingeschaltet. Auch config.toml startet deaktiviert; ein manueller Testlauf ist standardmäßig ein Dry Run.
+- Der Zeitplan wird über die Repository-Variable TWITCH_CLIPPER_ENABLED gesteuert. Ein manueller Testlauf ist standardmäßig ein Dry Run.
 
 ## Kosten und Repository-Sichtbarkeit
 
@@ -23,7 +23,7 @@ GitHub Actions bietet keine minutengenaue Ausführungsgarantie. Wenn dein Kanal 
 - src/twitch_autoclipper/: Konfiguration, OAuth/API-Client, Ablaufsteuerung und verschlüsselter Status
 - scripts/authenticate.py: einmalige Twitch-Geräteautorisierung auf deinem PC
 - config.toml: Kanal, Intervall, Clip-Länge, Aktivierung und Protokollstufe
-- .github/workflows/clipper.yml: deaktivierter Fünf-Minuten-Zeitplan und manueller Testlauf
+- .github/workflows/clipper.yml: über Repository-Variable gesteuerter Fünf-Minuten-Zeitplan und manueller Testlauf
 - .github/workflows/tests.yml: automatisierte Tests ohne echte Twitch-Aufrufe
 - tests/: simulierte Antworten und Prüfungen
 - requirements.txt: einzige externe Python-Abhängigkeit für den verschlüsselten Status
@@ -69,14 +69,14 @@ Twitch weist für den Device Code Flow darauf hin, dass ein Refresh-Token nach 3
 Aktive Konfiguration in config.toml:
 
 - Twitch-Kanal: badhai1.
-- Clip-Intervall: twitch.interval_minutes = 10.
+- Clip-Intervall: twitch.interval_minutes = 5.
 - Clip-Länge: twitch.clip_duration_seconds = 60.
 - Bot-Status: bot.enabled = true.
 - Protokollierung: bot.log_level auf DEBUG, INFO, WARNING oder ERROR setzen.
 
 Der Kanal ist in Version 1.0 auf badhai1 festgelegt. Auch bei einer Änderung der Konfiguration verweigert der Bot Clips für andere Konten. Der OAuth-Login muss zum Kanal passen.
 
-Der aktive Actions-Zeitplan prüft alle fünf Minuten. Der Bot erstellt höchstens einen Clip, wenn Twitch den Kanal als live meldet und das konfigurierte Zehn-Minuten-Intervall erreicht ist. GitHub Actions kann geplante Läufe verzögern oder auslassen; der verschlüsselte Laufzeitstatus und die Sperre gegen parallele Läufe verhindern doppelte Intervallversuche. Stelle unter **Settings → Secrets and variables → Actions → Variables** die Repository-Variable TWITCH_CLIPPER_ENABLED auf true, damit geplante Läufe ausgeführt werden.
+Der aktive Actions-Zeitplan prüft alle fünf Minuten. Der Bot erstellt höchstens einen Clip, wenn Twitch den Kanal als live meldet und das gespeicherte Fünf-Minuten-Intervall erreicht ist. Der nächste Zielzeitpunkt bleibt am Intervalltakt des aktuellen Streams ausgerichtet; verspätete Läufe überspringen verpasste Zeitfenster und lösen keinen Clip-Stapel aus. GitHub Actions kann Läufe verzögern oder auslassen, daher sind exakte Abstände nicht garantiert. Der verschlüsselte Laufzeitstatus und die Sperre gegen parallele Läufe verhindern doppelte Intervallversuche. Stelle unter **Settings → Secrets and variables → Actions → Variables** die Repository-Variable TWITCH_CLIPPER_ENABLED auf true, damit geplante Läufe ausgeführt werden.
 
 Ein manueller Verbindungstest ist unter **Actions → Twitch Auto Clipper → Run workflow** mit **Testlauf ohne echten Twitch-Clip** möglich. Der explizite Dry Run prüft OAuth, Konto und Livestream-Status, fordert aber niemals einen Clip an.
 
