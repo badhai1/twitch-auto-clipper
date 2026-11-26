@@ -1,8 +1,6 @@
 name: Twitch Auto Clipper
 
 on:
-  schedule:
-    - cron: "3-58/5 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -25,7 +23,7 @@ concurrency:
 
 jobs:
   clipper:
-    # A false repository variable skips the runner entirely until the bot is activated.
+    # This variable gates native scheduled events; Cloudflare workflow_dispatch stays enabled.
     if: github.event_name == 'workflow_dispatch' || vars.TWITCH_CLIPPER_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5

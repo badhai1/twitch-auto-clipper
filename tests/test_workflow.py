@@ -4,12 +4,13 @@ import unittest
 
 
 class WorkflowTests(unittest.TestCase):
-    def test_clipper_schedule_is_active_and_gated_by_repository_variable(self):
+    def test_native_clipper_schedule_is_disabled_and_external_dispatch_remains_enabled(self):
         workflow = (
             Path(__file__).parents[1] / ".github" / "workflows" / "clipper.yml"
         ).read_text(encoding="utf-8")
-        self.assertIn('\n  schedule:\n    - cron: "3-58/5 * * * *"', workflow)
-        self.assertNotIn("# schedule:", workflow)
+        self.assertNotIn("\n  schedule:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("vars.TWITCH_CLIPPER_ENABLED == 'true'", workflow)
         self.assertIn("group: twitch-auto-clipper", workflow)
         self.assertIn("cancel-in-progress: false", workflow)
@@ -24,13 +25,14 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("TWITCH_REFRESH_TOKEN", workflow)
         self.assertNotIn("TOKEN_ENCRYPTION_KEY", workflow)
 
-    def test_external_dispatcher_defaults_to_a_safe_probe_every_five_minutes(self):
+    def test_external_dispatcher_uses_clipper_mode_and_safe_probe_fallback(self):
         config = json.loads(
             (Path(__file__).parents[1] / "cloudflare" / "wrangler.jsonc").read_text(
                 encoding="utf-8"
             )
         )
         self.assertEqual(config["triggers"]["crons"], ["3-58/5 * * * *"])
+        self.assertEqual(config["vars"]["TARGET_MODE"], "clipper")
         self.assertFalse(config["workers_dev"])
         self.assertTrue(config["keep_vars"])
         self.assertTrue(config["observability"]["enabled"])

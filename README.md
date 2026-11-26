@@ -6,9 +6,9 @@ Ein kleiner Python-Bot, der den Livestream von **badhai1** über die offizielle 
 
 - Twitch erlaubt bei der Live-Clip-Erstellung aktuell eine Clip-Länge von 5 bis 60 Sekunden. Dieses Projekt bietet die angefragten Werte 15, 30, 45 und 60 Sekunden an. Twitch nimmt für die Clip-Erstellung ein Aufnahmefenster von bis zu 90 Sekunden auf; das ist vom veröffentlichten Clip mit der ausgewählten Länge zu unterscheiden. Die API veröffentlicht standardmäßig einen Clip und stellt im Ergebnis eine Bearbeitungsadresse bereit.
 - Die aktuelle Helix-API nimmt einen Clip-Titel entgegen. Der Bot setzt Titel wie „badhai1 - Gaming Clip 001“. Twitch kann einen Titel durch AutoMod ablehnen.
-- GitHub Actions unterstützt Zeitpläne frühestens alle fünf Minuten. Der Workflow prüft alle fünf Minuten und erstellt höchstens einen Clip pro Lauf, wenn das gespeicherte Intervall abgelaufen ist. Verpasste Zeitfenster werden übersprungen statt nachträglich mit mehreren Clips aufgeholt. GitHub kann geplante Läufe verzögern oder auslassen; die tatsächlichen Clip-Abstände sind daher nicht garantiert.
+- Der Cloudflare-Worker stößt alle fünf Minuten einen GitHub-Actions-Lauf an. Dieser prüft den Livestatus und erstellt höchstens einen Clip pro Lauf, wenn das gespeicherte Intervall abgelaufen ist. Verpasste Zeitfenster werden übersprungen statt nachträglich mit mehreren Clips aufgeholt. GitHub kann gestartete Workflows verzögern; die tatsächlichen Clip-Abstände sind daher nicht garantiert.
 - Ein laufender Clip-Auftrag wird vor dem Twitch-Aufruf verschlüsselt und gespeichert. Nach einer unklaren Netzwerkstörung wird derselbe Zeitabschnitt nicht blind erneut angefragt. Das verhindert Doppelclips, kann aber bei einem Fehler nach der Reservierung einen Clip-Zeitpunkt auslassen.
-- Der Zeitplan wird über die Repository-Variable TWITCH_CLIPPER_ENABLED gesteuert. Ein manueller Testlauf ist standardmäßig ein Dry Run.
+- Die Repository-Variable `TWITCH_CLIPPER_ENABLED` schaltet nur den nativen GitHub-Zeitplan; Cloudflare startet weiterhin den `workflow_dispatch`-Workflow. Ein manuell gestarteter Testlauf ist standardmäßig ein Dry Run.
 
 ## Kosten und Repository-Sichtbarkeit
 
@@ -16,16 +16,16 @@ Ein Fünf-Minuten-Zeitplan startet bis zu 288 Läufe pro Tag beziehungsweise etw
 
 Damit dieser Zeitplan wirklich kostenlos bleibt, ist ein **öffentliches Repository** mit Standardrunnern die passende GitHub-Actions-Variante. Der Quellcode enthält keine Zugangsdaten; Twitch-Refresh- und Zugriffstoken liegen in GitHub Secrets beziehungsweise als Fernet-verschlüsselter Status in .state/runtime.enc. Der Verschlüsselungsschlüssel selbst liegt nur als GitHub Secret vor. Öffentlich sichtbarer Quellcode und private Zugangsdaten sind damit getrennt. Wenn du ein privates Repository willst, prüfe vorher die Actions-Nutzung und setze in GitHub ein Ausgabenlimit oder lasse den Zeitplan deaktiviert.
 
-GitHub Actions bietet keine minutengenaue Ausführungsgarantie. Wenn dein Kanal häufig live ist und jeder einzelne Fünf-Minuten-Zeitpunkt wichtig ist, ist eine dauerhafte externe Laufzeit nötig; das wäre nicht mehr die kostenfreie GitHub-Variante.
+Weder Cloudflare Cron noch GitHub Actions garantieren minutengenaue Starts. Der externe Worker verringert die Abhängigkeit vom GitHub-Zeitplan, aber GitHub kann einen gestarteten Workflow weiterhin verzögern oder auslassen.
 
-Ein optionaler Cloudflare-Worker kann als externer Zeitgeber den bestehenden Actions-Workflow alle fünf Minuten über die GitHub-API starten. Der Worker läuft auf Cloudflares kostenlosem Workers-Plan; die Konfiguration verwendet einen einzelnen Cron Trigger und benötigt weder einen eigenen Domainnamen noch einen eingeschalteten PC. Cloudflares Free-Plan hat Nutzungslimits und keine minutengenaue Ausführungsgarantie. Änderungen am Cron Trigger können bis zu 15 Minuten benötigen, bis sie überall aktiv sind. Der Worker startet standardmäßig nur den sicheren Probe-Workflow. Erst nach einer mindestens einstündigen Messung wird er auf den Clipper umgestellt und der interne Actions-Zeitplan abgeschaltet.
+Der Cloudflare-Worker ist als externer Zeitgeber eingerichtet und startet den bestehenden Actions-Workflow alle fünf Minuten über die GitHub-API. Nach einer erfolgreichen einstündigen Probe-Messung wurde der Worker auf `clipper` umgestellt und der native GitHub-Zeitplan aus `.github/workflows/clipper.yml` entfernt. Der Worker läuft innerhalb der Nutzungslimits auf Cloudflares kostenlosem Workers-Plan, benötigt weder einen eigenen Domainnamen noch einen eingeschalteten PC und hat keine minutengenaue Ausführungsgarantie. GitHub kann gestartete Workflows weiterhin verzögern oder auslassen.
 
 ## Projektdateien
 
 - src/twitch_autoclipper/: Konfiguration, OAuth/API-Client, Ablaufsteuerung und verschlüsselter Status
 - scripts/authenticate.py: einmalige Twitch-Geräteautorisierung auf deinem PC
 - config.toml: Kanal, Intervall, Clip-Länge, Aktivierung und Protokollstufe
-- .github/workflows/clipper.yml: über Repository-Variable gesteuerter Fünf-Minuten-Zeitplan und manueller Testlauf
+- .github/workflows/clipper.yml: Clipper-Workflow für den externen Cloudflare-Dispatch und manuelle Testläufe
 - .github/workflows/tests.yml: automatisierte Tests ohne echte Twitch-Aufrufe
 - tests/: simulierte Antworten und Prüfungen
 - requirements.txt: einzige externe Python-Abhängigkeit für den verschlüsselten Status
@@ -117,7 +117,7 @@ Ein echter Twitch-Test ist noch erforderlich, um die App-Autorisierung, tatsäch
 
 ## Externen Zeitgeber einrichten und messen
 
-Der Cloudflare-Worker in `cloudflare/` ist vorbereitet, aber noch nicht veröffentlicht. Der interne GitHub-Zeitplan bleibt aktiv, bis der Probezeitraum erfolgreich geprüft wurde. Cron-job.org wurde nicht als Dispatcher ausgewählt: Der Dienst ist zwar kostenlos, führt POST-Aufrufe aus und erlaubt Minutentakte, gibt aber keine Pünktlichkeitsgarantie. Seine Nutzungsbedingungen warnen zudem davor, sicherheitskritische Geheimnisse in Headern oder Request-Daten zu hinterlegen. Ein GitHub-Workflow-Dispatch benötigt ein GitHub-Token; deshalb verwahrt der vorbereitete Worker stattdessen einen eng beschränkten GitHub-App-Schlüssel als Cloudflare Secret und erstellt kurzlebige Installationstokens.
+Die folgenden Schritte dokumentieren die Erstinstallation. Der aktuell veröffentlichte Worker nutzt einen eng beschränkten GitHub-App-Schlüssel als Cloudflare Secret und erstellt pro Dispatch ein kurzlebiges Installationstoken. Cron-job.org wurde nicht als Dispatcher ausgewählt: Auch dort gibt es keine Pünktlichkeitsgarantie; außerdem müsste der Dienst ein GitHub-Zugriffstoken sicher verwahren.
 
 1. Erstelle unter [GitHub → Settings → Developer settings → GitHub Apps](https://github.com/settings/apps) eine GitHub-App. Deaktiviere Webhooks. Gib unter **Repository permissions** nur **Actions: Read and write** frei; abonniere keine Events.
 2. Installiere die App ausschließlich auf `badhai1/twitch-auto-clipper`. Erstelle einen privaten Schlüssel und speichere die PEM-Datei außerhalb des Projektordners. Teile oder committe sie nicht.
@@ -125,8 +125,8 @@ Der Cloudflare-Worker in `cloudflare/` ist vorbereitet, aber noch nicht veröffe
 4. Erstelle ein kostenloses Cloudflare-Konto und installiere Node.js LTS. Im Projektordner führst du `npx wrangler login` aus und bestätigst die Cloudflare-Anmeldung im Browser.
 5. Veröffentliche den Worker mit `npx wrangler deploy --config cloudflare/wrangler.jsonc`. Trage in den Worker-Einstellungen unter **Settings → Variables and Secrets** die Variablen `GITHUB_APP_ID` und `GITHUB_INSTALLATION_ID` ein. Füge den Inhalt der PEM-Datei als Secret `GITHUB_APP_PRIVATE_KEY` hinzu. Das Secret bleibt in Cloudflare; nicht in GitHub-Dateien oder Logs.
 6. Der Worker startet standardmäßig den Workflow **External schedule probe**, der keine Twitch-Secrets benötigt und keine Clips erstellen kann. Warte nach dem Einrichten 15 Minuten auf die Verteilung des Cron Triggers und beobachte anschließend mindestens 60 Minuten lang die Probe-Läufe. In den Logs stehen der vorgesehene UTC-Zeitpunkt und der tatsächliche Workflow-Start. Ein einzelner erfolgreicher Lauf genügt nicht.
-7. Erst nach erfolgreicher Messung: Setze die GitHub-Variable `TWITCH_CLIPPER_ENABLED` auf `false`, damit der interne Cron nicht mehr startet. Setze anschließend die Cloudflare-Worker-Variable `TARGET_MODE` auf `clipper`. In diesem Modus sendet der Worker für `workflow_dispatch` ausdrücklich `dry_run=false`; die GitHub-Secrets und die bestehende Twitch-Verbindung bleiben dort. Der nächste externe Lauf startet den Clipper.
+7. Erst nach erfolgreicher Messung: Entferne `schedule` aus `.github/workflows/clipper.yml`, damit nur der externe Zeitgeber den Clipper startet. `TWITCH_CLIPPER_ENABLED` kann zusätzlich auf `false` gesetzt werden; das blockiert native Schedule-Ereignisse, aber keine `workflow_dispatch`-Aufrufe von Cloudflare. Setze danach die Cloudflare-Worker-Variable `TARGET_MODE` auf `clipper`. In diesem Modus sendet der Worker ausdrücklich `dry_run=false`; die GitHub-Secrets und die bestehende Twitch-Verbindung bleiben dort.
 
-Wenn die Messung unregelmäßige GitHub-Starts zeigt, bleibt der interne Zeitplan aktiv und der Probe-Modus bleibt eingeschaltet. Dann müsste eine direkte Cloud-Ausführung des Bots geprüft werden; diese erfordert mehr Änderungen am bestehenden synchronen Python-API-Client. Auch ein direkter Cloudflare-Cronlauf hat keine harte Zeitgarantie.
+Wenn eine Probe-Messung unregelmäßige GitHub-Starts zeigt, sollte `TARGET_MODE=probe` eingeschaltet bleiben, bis eine Alternative geprüft wurde. Auch eine direkte Cloudflare-Ausführung hätte keine harte Zeitgarantie.
 
 Der GitHub-App-Dispatch benötigt nur `Actions: Read and write` für dieses eine Repository. GitHub erstellt pro Aufruf ein kurzlebiges Installationstoken. Die Workflow-Concurrency-Gruppe und die vor dem Clip-Aufruf gespeicherte Intervallreservierung verhindern parallele Clip-Anfragen; verpasste Intervalle werden nicht nachgeholt.
