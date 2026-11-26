@@ -1,0 +1,27 @@
+name: External schedule probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      scheduled_at:
+        description: "Cloudflare scheduled time in UTC"
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: twitch-auto-clipper-dispatch-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record scheduled and actual workflow start
+        shell: bash
+        env:
+          SCHEDULED_AT: ${{ inputs.scheduled_at }}
+        run: |
+          echo "Scheduled slot (UTC): ${SCHEDULED_AT}"
+          echo "Workflow start (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"

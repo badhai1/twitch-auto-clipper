@@ -54,13 +54,15 @@ class BotTests(unittest.TestCase):
         self.assertIsNone(state.stream_id)
         self.assertTrue(saved)
 
-    def test_interval_waits_from_live_stream_start(self):
-        started = NOW - timedelta(minutes=9)
+    def test_first_clip_waits_until_selected_clip_length_is_available(self):
+        started = NOW - timedelta(seconds=59)
         twitch = FakeTwitch(
             {"id": "stream1", "type": "live", "user_id": "123", "started_at": format_time(started)}
         )
         state = RuntimeState()
-        result = run_once(config(interval=10), state, twitch, lambda: None, now=NOW)
+        result = run_once(
+            config(interval=5, duration=60), state, twitch, lambda: None, now=NOW
+        )
         self.assertEqual(result, "not_due")
         self.assertEqual(twitch.clip_requests, [])
 
@@ -91,7 +93,7 @@ class BotTests(unittest.TestCase):
         )
         self.assertEqual(result, "created")
         self.assertEqual(len(first.clip_requests), 1)
-        self.assertEqual(state.next_due, NOW + timedelta(minutes=8))
+        self.assertEqual(state.next_due, NOW + timedelta(minutes=5))
 
         before_due = FakeTwitch(stream)
         result = run_once(
@@ -99,7 +101,7 @@ class BotTests(unittest.TestCase):
             state,
             before_due,
             lambda: None,
-            now=NOW + timedelta(minutes=7, seconds=59),
+            now=NOW + timedelta(minutes=4, seconds=59),
         )
         self.assertEqual(result, "not_due")
         self.assertEqual(before_due.clip_requests, [])
@@ -110,7 +112,7 @@ class BotTests(unittest.TestCase):
             state,
             at_due,
             lambda: None,
-            now=NOW + timedelta(minutes=8),
+            now=NOW + timedelta(minutes=5),
         )
         self.assertEqual(result, "created")
         self.assertEqual(len(at_due.clip_requests), 1)
@@ -140,15 +142,46 @@ class BotTests(unittest.TestCase):
         self.assertEqual(state.next_due, NOW + timedelta(minutes=5))
         self.assertEqual(twitch.clip_requests, [])
 
-    def test_twenty_five_minute_interval_becomes_due_at_twenty_five(self):
-        started = NOW - timedelta(minutes=25)
+    def test_twenty_five_minute_interval_remains_configurable_between_clips(self):
+        started = NOW - timedelta(minutes=60)
         twitch = FakeTwitch(
             {"id": "stream1", "type": "live", "user_id": "123", "started_at": format_time(started)}
         )
-        state = RuntimeState()
+        state = RuntimeState(
+            stream_id="stream1",
+            stream_started_at=format_time(started),
+            next_clip_due_at=format_time(NOW),
+            interval_minutes=25,
+            last_attempt_at=format_time(NOW - timedelta(minutes=25)),
+            last_success_at=format_time(NOW - timedelta(minutes=25)),
+            clip_sequence=1,
+        )
         result = run_once(config(interval=25), state, twitch, lambda: None, now=NOW, dry_run=True)
         self.assertEqual(result, "dry_run_due")
         self.assertEqual(twitch.clip_requests, [])
+
+    def test_five_minute_one_hour_stream_can_reach_twelve_clips(self):
+        started = NOW - timedelta(minutes=60)
+        stream = {
+            "id": "stream1",
+            "type": "live",
+            "user_id": "123",
+            "started_at": format_time(started),
+        }
+        state = RuntimeState()
+        for index in range(12):
+            scheduled_time = started + timedelta(minutes=1 + index * 5)
+            twitch = FakeTwitch(stream)
+            result = run_once(
+                config(interval=5, duration=60),
+                state,
+                twitch,
+                lambda: None,
+                now=scheduled_time,
+            )
+            self.assertEqual(result, "created")
+            self.assertEqual(twitch.clip_requests[0][1], 60)
+        self.assertEqual(state.clip_sequence, 12)
 
     def test_due_interval_creates_configured_length_and_title(self):
         started = NOW - timedelta(minutes=11)

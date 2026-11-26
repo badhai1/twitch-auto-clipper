@@ -1,0 +1,10 @@
+{
+  "$schema": "https://developers.cloudflare.com/workers/wrangler/config-schema.json",
+  "name": "twitch-auto-clipper-dispatcher",
+  "main": "dispatcher.mjs",
+  "compatibility_date": "2026-11-26",
+  "workers_dev": false,
+  "triggers": {
+    "crons": ["3-58/5 * * * *"]
+  }
+}

@@ -74,24 +74,39 @@ def run_once(
         format_time(started_at),
     )
 
-    if state.stream_id != stream_id:
+    new_stream = state.stream_id != stream_id
+    if new_stream:
         state.stream_id = stream_id
         state.stream_started_at = format_time(started_at)
         state.next_clip_due_at = format_time(
-            started_at + timedelta(minutes=config.interval_minutes)
+            started_at + timedelta(seconds=config.clip_duration_seconds)
         )
         state.interval_minutes = config.interval_minutes
         state.last_attempt_at = None
         save_state()
-        logging.info("Neuer Stream erkannt; erstes Clip-Ziel ist %s.", state.next_clip_due_at)
+        logging.info(
+            "Neuer Stream erkannt; erster Clip frühestens nach %s Sekunden bei %s.",
+            config.clip_duration_seconds,
+            state.next_clip_due_at,
+        )
 
     elif state.interval_minutes != config.interval_minutes or state.next_due is None:
         # Migrate old encrypted state and honor a changed interval from the last
         # clip attempt, while keeping future targets on the same stream cadence.
-        first_due_at = started_at + timedelta(minutes=config.interval_minutes)
-        minimum_at = _latest_state_event(state, started_at) + timedelta(
-            minutes=config.interval_minutes
+        has_clip_history = (
+            state.last_attempt_at is not None
+            or state.last_success_at is not None
+            or state.last_clip_id is not None
+            or state.clip_sequence > 0
         )
+        if has_clip_history:
+            first_due_at = started_at + timedelta(minutes=config.interval_minutes)
+            minimum_at = _latest_state_event(state, started_at) + timedelta(
+                minutes=config.interval_minutes
+            )
+        else:
+            first_due_at = started_at + timedelta(seconds=config.clip_duration_seconds)
+            minimum_at = first_due_at
         state.interval_minutes = config.interval_minutes
         state.stream_started_at = format_time(started_at)
         state.next_clip_due_at = format_time(
@@ -123,13 +138,16 @@ def run_once(
     attempt_at = now if supplied_now is not None else _as_utc(utc_now())
     period = timedelta(minutes=config.interval_minutes)
     state.last_attempt_at = format_time(attempt_at)
-    state.next_clip_due_at = format_time(
-        _interval_boundary_at_or_after(
-            due_at + period,
-            attempt_at + period,
-            config.interval_minutes,
+    if new_stream or (state.last_success_at is None and state.clip_sequence == 0):
+        state.next_clip_due_at = format_time(attempt_at + period)
+    else:
+        state.next_clip_due_at = format_time(
+            _interval_boundary_at_or_after(
+                due_at + period,
+                attempt_at + period,
+                config.interval_minutes,
+            )
         )
-    )
     save_state()
     if before_clip_request is not None:
         before_clip_request()
