@@ -32,6 +32,7 @@ class WorkflowTests(unittest.TestCase):
         )
         self.assertEqual(config["triggers"]["crons"], ["3-58/5 * * * *"])
         self.assertFalse(config["workers_dev"])
+        self.assertTrue(config["keep_vars"])
         dispatcher = (
             Path(__file__).parents[1] / "cloudflare" / "dispatcher.mjs"
         ).read_text(encoding="utf-8")

@@ -4,6 +4,7 @@
   "main": "dispatcher.mjs",
   "compatibility_date": "2026-11-26",
   "workers_dev": false,
+  "keep_vars": true,
   "triggers": {
     "crons": ["3-58/5 * * * *"]
   }
