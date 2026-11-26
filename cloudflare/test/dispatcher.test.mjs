@@ -78,6 +78,12 @@ test("probe mode dispatches only the secret-free probe workflow", async () => {
   assert.equal(github.calls.length, 2);
   assert.match(github.calls[0].url, /\/app\/installations\/654321\/access_tokens$/u);
   assert.match(github.calls[1].url, /\/actions\/workflows\/dispatch-probe\.yml\/dispatches$/u);
+  for (const call of github.calls) {
+    assert.equal(
+      call.options.headers["User-Agent"],
+      "TwitchAutoClipper/1.0 (+https://github.com/badhai1/twitch-auto-clipper)",
+    );
+  }
   assert.equal(github.calls[1].options.method, "POST");
   assert.deepEqual(JSON.parse(github.calls[1].options.body), {
     ref: "main",

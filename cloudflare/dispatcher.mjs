@@ -1,5 +1,6 @@
 const API_ROOT = "https://api.github.com";
 const API_VERSION = "2022-11-28";
+const USER_AGENT = "TwitchAutoClipper/1.0 (+https://github.com/badhai1/twitch-auto-clipper)";
 const OWNER = "badhai1";
 const REPOSITORY = "twitch-auto-clipper";
 const PROBE_WORKFLOW = "dispatch-probe.yml";
@@ -134,6 +135,7 @@ async function installationToken(env, fetchImpl, nowSeconds) {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${jwt}`,
         "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
         "X-GitHub-Api-Version": API_VERSION,
       },
       body: "{}",
@@ -168,6 +170,7 @@ export async function dispatchScheduled({
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
+        "User-Agent": USER_AGENT,
         "X-GitHub-Api-Version": API_VERSION,
       },
       body: JSON.stringify(payload),
